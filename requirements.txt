@@ -1,0 +1,8 @@
+# Basic requirements for the model pruning project
+torch>=1.8.0
+torchvision>=0.9.0
+numpy>=1.19.0
+matplotlib>=3.3.0
+pandas>=1.0.0  # For compare_results script data handling
+thop>=0.1.1    # For FLOPs calculation (install via pip install thop)
+tabulate>=0.8.0 # Optional: For better table formatting in compare_results.py
