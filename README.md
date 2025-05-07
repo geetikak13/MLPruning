@@ -6,7 +6,7 @@ This project implements and evaluates two heuristic numerical methods for prunin
 
 The goal is to reduce model complexity (parameters, FLOPs) while maintaining acceptable accuracy. The code supports running on NVIDIA CUDA, Apple Silicon (MPS), or CPU automatically and includes utilities for comparison and visualization.
 
-**Team Members:** Geetika Khanna, Archit Harsh, Hemal
+**Team Members:** Geetika Khanna, Archit Harsh, Himal Sharma
 
 ## Project Structure
 ```
@@ -37,7 +37,7 @@ mlpruning/
 
 1.  **Clone the repository (if applicable):**
     ```bash
-    git clone <your-repo-url>
+    git clone https://github.com/geetikak13/MLPruning
     cd model-pruning
     ```
 
@@ -64,7 +64,7 @@ The typical workflow involves training a base model, then applying one or both p
 
 1.  **Train the Base Model:**
     ```bash
-    python3 scripts/train.py [--epochs 50] [--lr 0.001] [--batch_size 128] [--num_workers 2]
+    python3 scripts/train.py --epochs 50 --lr 0.001 --batch_size 128 --num_workers 2
     ```
     * Saves the best model to `./models/base_model.pth`.
 
