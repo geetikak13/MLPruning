@@ -1,36 +1,84 @@
-\documentclass[10pt, article]{article} % Using standard article class
+\documentclass[conference]{IEEEtran} % Use IEEE conference template class
 
-\usepackage{amsmath}        % For math equations
-\usepackage{graphicx}       % For including images
-\usepackage[margin=1in]{geometry} % Set margins
-\usepackage{hyperref}       % For clickable links (optional)
-\usepackage{booktabs}       % For professional tables (\toprule, \midrule, \bottomrule)
-% Removed float package for broader compatibility
+% === PACKAGES ===
+% IEEEtran class handles many formatting aspects automatically.
+% Add essential packages not included by default.
+\usepackage[utf8]{inputenc}      % Handle UTF-8 encoding
+\usepackage[T1]{fontenc}         % Use modern font encodings
+\usepackage{graphicx}            % For including images (\graphicspath can be useful)
+\usepackage{amsmath}             % For math environments
+\usepackage{booktabs}            % For professional-looking tables (\toprule, \midrule, \bottomrule)
+\usepackage{url}                 % For typesetting URLs
+\usepackage{cite}                % Handles citation ranges better for IEEE style
+\usepackage[binary-units=true]{siunitx} % For consistent units (optional but good practice)
 
-% --- Document Information ---
-\title{Model Compression and Pruning for Efficient Deep Learning via Optimization Heuristics}
-\author{Geetika Khanna \and Archit Harsh \and Hemal}
-\date{May 3, 2025 \\ MSML 604} % Include course if needed
+% Add hyperref last for best compatibility (optional)
+\usepackage[hidelinks]{hyperref} % Use hidelinks to avoid boxes around links, common in IEEE papers
+\hypersetup{
+    colorlinks=false, % Set to false for final submission usually
+    pdftitle={CNN Performance Comparison},
+    pdfauthor={Geetika Khanna, Archit Harsh},
+    pdfsubject={Deep Learning Performance Analysis},
+    pdfkeywords={CNN, PyTorch, Numba, CUDA, MPS, CPU, GPU, Performance Benchmark, MNIST}
+}
 
+% Define graphic path (optional, helps organize images)
+% \graphicspath{{results/}} % Assumes figures are in a 'results' subdirectory
+
+% Correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor Numba Py-Torch}
+
+% === DOCUMENT START ===
 \begin{document}
 
+% --- Title ---
+\title{Model Compression and Pruning for Efficient Deep Learning}
+
+% --- Author Information ---
+% Use \IEEEauthorblockN and \IEEEauthorblockA for affiliation
+% Use \and to separate authors
+\author{
+\IEEEauthorblockN{Geetika Khanna}
+\IEEEauthorblockA{University of Maryland}
+\and
+\IEEEauthorblockN{Archit Harsh}
+\IEEEauthorblockA{University of Maryland}
+\and
+\IEEEauthorblockN{Himal Sharma}
+\IEEEauthorblockA{University of Maryland}
+}
+
+% --- Make the title area ---
 \maketitle
 
 % --- Abstract ---
 \begin{abstract}
-Modern deep learning models achieve state-of-the-art results but demand significant computational resources, hindering deployment on edge devices and increasing operational costs. Model pruning aims to reduce network complexity (parameters, computations) while maintaining performance. This report addresses the problem of finding an optimal pruned sub-network by formulating it as a constrained optimization problem involving binary variables to select weights. Due to the computational intractability of solving this Mixed Integer Non-Linear Program (MINLP) directly for large networks, we implement and evaluate two distinct numerical heuristic approaches: (1) Iterative Greedy Magnitude Pruning with Fine-tuning (iGreedy), stopping based on an accuracy threshold, and (2) L1 Regularization during training followed by weight thresholding and fine-tuning. We apply these methods to a Convolutional Neural Network (CNN) on the CIFAR-10 dataset using PyTorch, incorporating automatic device selection (MPS/CUDA/CPU) and robust error handling. We evaluate the trade-offs using metrics for accuracy, sparsity (parameter count), and estimated computational cost (FLOPs). Our results demonstrate that both heuristics can significantly compress the model, reducing parameters and FLOPs with controlled accuracy loss, highlighting their practical utility in generating efficient models suitable for resource-constrained environments.
+    Modern deep learning models achieve state-of-the-art results but demand significant computational resources, hindering deployment on edge devices and increasing operational costs. Model pruning aims to reduce network complexity (parameters, computations) while maintaining performance. This report addresses the problem of finding an optimal pruned sub-network by formulating it as a constrained optimization problem involving binary variables to select weights. Due to the computational intractability of solving this Mixed Integer Non-Linear Program (MINLP) directly for large networks, we implement and evaluate two distinct numerical heuristic approaches: 
+    \begin{enumerate}
+        \item Iterative Greedy Magnitude Pruning with Fine-tuning (iGreedy), stopping based on an accuracy threshold, and 
+        \item L1 Regularization during training followed by weight thresholding and fine-tuning. 
+    \end{enumerate}
+    We apply these methods to a Convolutional Neural Network (CNN) on the CIFAR-10 dataset using PyTorch, incorporating automatic device selection (MPS/CUDA/CPU) and robust error handling. We evaluate the trade-offs using metrics for accuracy, sparsity (parameter count), and estimated computational cost (FLOPs). Our results demonstrate that both heuristics can significantly compress the model, reducing parameters and FLOPs with controlled accuracy loss, highlighting their practical utility in generating efficient models suitable for resource-constrained environments.
+    \\
+    \subsection*{Github}
+    \label{sec:github}
+    The complete source code is available on GitHub: 
+    \href{https://github.com/geetikak13/MLPruning}{\color{blue}MLPruning}.
 \end{abstract}
 
-% --- Sections ---
+% --- Main Content ---
+\IEEEpeerreviewmaketitle % For peer review papers, shows keywords/abstract on title page
+
 \section{Introduction}
-The success of Deep Neural Networks (DNNs) across various fields is undeniable. However, this success often comes at the cost of enormous model size and computational complexity. Models like VGG, ResNet, and large language models can have millions or billions of parameters, leading to significant challenges:
+% Use \IEEEPARstart for the first paragraph's drop cap
+\IEEEPARstart{T}{he} success of Deep Neural Networks (DNNs) across various fields is undeniable. However, this success often comes at the cost of enormous model size and computational complexity. Models like VGG, ResNet, and large language models can have millions or billions of parameters, leading to significant challenges:
 \begin{itemize}
     \item \textbf{High Training \& Inference Costs:} Requiring powerful GPUs and significant time.
     \item \textbf{Large Memory/Storage Footprint:} Making deployment on resource-constrained devices like mobile phones, IoT devices, or embedded systems difficult.
     \item \textbf{High Energy Consumption:} Contributing to operational costs and environmental concerns, especially in large data centers.
     \item \textbf{Latency Issues:} Slowing down real-time applications like autonomous driving or live video analysis.
 \end{itemize}
-Model compression techniques, particularly pruning, offer a promising solution. Pruning involves identifying and removing less important components (weights, neurons, filters) from a trained network to create a smaller, faster, and more energy-efficient equivalent without significantly sacrificing predictive accuracy. This project focuses on unstructured weight pruning, where individual weights can be removed regardless of their position.
+Model compression techniques, particularly pruning, offer a promising solution. Pruning involves identifying and removing less important components (weights, neurons, filters) from a trained network to create a smaller, faster, and more energy-efficient equivalent without significantly sacrificing predictive accuracy. This project focuses on unstructured weight pruning, where individual weights can be removed regardless of their position. 
 
 \section{Motivation}
 The drive towards efficient and ubiquitous AI motivates this exploration of model pruning:
@@ -67,7 +115,7 @@ Where:
 This formulation clearly states the objective but involves a complex, non-linear constraint related to accuracy.
 
 \subsection{Formulation 2: Penalized Objective (Minimize Loss + Sparsity Penalty)}
-This formulation, similar to the one presented in our mid-semester report, combines the task performance (loss) and model complexity (number of parameters) into a single objective function using a trade-off parameter $\lambda$.
+This formulation combines the task performance (loss) and model complexity (number of parameters) into a single objective function using a trade-off parameter $\lambda$.
 \begin{equation} \label{eq:penalized_opt}
 \begin{aligned}
 & \underset{z}{\text{minimize}}
@@ -118,12 +166,13 @@ Given the difficulty of solving the MINLP optimally, we implement and compare tw
     \begin{enumerate} % Outer list for Algorithm
         \item Train using L1-regularized loss: $\mathcal{L}_{total}(W) = \mathcal{L}_{CE}(W) + \lambda' \sum |w_j|$.
         \item \textbf{Thresholding:} After training, set weights $|w_j| < \epsilon$ to zero ($\epsilon$ is the threshold).
-        % --- CORRECTED LINE BELOW ---
-        \item \textbf{(Optional) Fine-tuning:} Fine-tune the thresholded network without the L1 penalty.
-        % --- END CORRECTION ---
+        \item \textbf{Fine-tuning:} Fine-tune the thresholded network without the L1 penalty.
     \end{enumerate} % End outer list
     \item \textbf{Pros:} Integrates sparsity into training optimization.
     \item \textbf{Cons:} Requires tuning $\lambda'$ and $\epsilon$; final sparsity is an outcome, not directly controlled.
+    \\
+    \\
+    L1 regularization is a very common and practical heuristic or proxy method to encourage sparsity. The idea is that by penalizing the L1 norm of the weights, many weights will be driven towards zero. Those that are driven sufficiently close to zero can then be set to exactly zero by the subsequent thresholding step.
 \end{itemize}
 
 \section{Implementation Details}
@@ -151,72 +200,73 @@ Given the difficulty of solving the MINLP optimally, we implement and compare tw
 \end{itemize}
 
 \section{Numerical Results and Analysis}
-\textit{(Note: This section presents an analysis based on typical expected outcomes from running the provided code. Specific values depend on random seeds, exact hyperparameters, and training duration.)}
+We first trained the base \texttt{SimpleCNN} model using \texttt{scripts/train.py} for 50 epochs, achieving a baseline accuracy of 85.49\%.
 
-We first trained the base \texttt{SimpleCNN} model using \texttt{scripts/train.py} for 50 epochs, achieving a baseline accuracy around 85.1\%.
-
-\textbf{iGreedy Threshold Pruning:} We ran \texttt{scripts/prune\_igreedy.py} with \texttt{--accuracy\_threshold 82.0} and \texttt{--prune\_step\_amount 0.1}. The script iteratively pruned 10\% of remaining weights and fine-tuned for 5 epochs per iteration. It stopped after iteration 5, identifying the model from this iteration as the last one meeting the threshold.
+\textbf{iGreedy Threshold Pruning:} We ran \texttt{scripts/prune\_igreedy.py} with \texttt{--accuracy\_threshold 84.0} and \texttt{--prune\_step\_amount 0.2}. The script iteratively pruned 10\% of remaining weights and fine-tuned for 5 epochs per iteration. It stopped after iteration 10, identifying the model from this iteration as the last one meeting the threshold.
 
 \textbf{L1 Regularization Pruning:} We ran \texttt{scripts/prune\_l1reg.py} with \texttt{--l1\_lambda 1e-5}, \texttt{--threshold 1e-4}, \texttt{--l1\_epochs 50}, and \texttt{--fine\_tune\_epochs 10}.
 
-\textbf{Comparison (\texttt{compare\_results.py} Output):} The comparison script aggregated results from the base model and the outputs of both pruning methods. An illustrative summary is shown in Table \ref{tab:results}.
+\textbf{Comparison (\texttt{compare\_results.py} Output):} The comparison script aggregated results from the base model and the outputs of both pruning methods. Table \ref{tab:results} summarizes the results from the tests.
 
 % --- Results Table ---
-% Using standard table environment, letting LaTeX handle placement
-\begin{table} % You can adjust placement specifiers [htbp] as needed
+% Using standard table environment
+\begin{table*}[!t] % Use placement specifier like !t for top of page
+    \renewcommand{\arraystretch}{1.3} % Increase row spacing slightly
+    \caption{Comparison of Pruning Methods}
+    \label{tab:results}
     \centering
-    \caption{Comparison of Model Performance Metrics} % Add your desired caption
-    \label{tab:model_metrics} % Add a label for cross-referencing
+    % Use \small or \footnotesize if table is too wide
     \begin{tabular}{@{}llrrrr@{}}
         \toprule
-        % Headers for S columns need braces {}
-        \textbf{Type} & \textbf{Name} & {\textbf{Accuracy (\%)}} & {\textbf{Sparsity (\%)}} & {\textbf{Non-Zero Params}} & {\textbf{GFLOPs}} \\
+        Type    & Name                                          & Accuracy (\%) & Sparsity (\%) & Non-Zero Params   & GFLOPs \\ % Escaped %
         \midrule
-        Base    & base\_model.pth                     & 85.49 &  0.00 & 4440778 & 0.16 \\
-        \midrule % Separate Base model
-        L1Reg   & final\_l1\_pruned\_model\_1e-5.pth  & 87.28 & 58.33 & 1850772 & 0.16 \\
-        L1Reg   & final\_l1\_pruned\_model\_1e-4.pth  & 85.39 & 68.27 & 1409645 & 0.16 \\
-        \midrule % Separate L1Reg models
-        iGreedy & pruned\_model\_iter\_0\_sparsity\_0.0.pth  & 85.49 &  0.00 & 4440778 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_1\_sparsity\_20.0.pth & 85.37 & 16.14 & 3724057 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_2\_sparsity\_36.0.pth & 85.49 & 27.05 & 3239634 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_3\_sparsity\_48.8.pth & 85.75 & 28.28 & 3185379 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_9\_sparsity\_81.8.pth & 84.88 & 29.20 & 3144454 & 0.16 \\ % Note: 29.2 adjusted to 29.20 for alignment
-        iGreedy & pruned\_model\_iter\_8\_sparsity\_77.3.pth & 85.35 & 29.45 & 3133297 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_7\_sparsity\_71.6.pth & 85.84 & 30.74 & 3075815 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_6\_sparsity\_64.5.pth & 85.74 & 33.68 & 2945309 & 0.16 \\
-        iGreedy & pruned\_model\_iter\_5\_sparsity\_67.2.pth & 85.66 & 33.90 & 2935507 & 0.16 \\ % Note: 33.9 adjusted to 33.90 for alignment
-        iGreedy & pruned\_model\_iter\_4\_sparsity\_59.0.pth & 85.79 & 35.53 & 2863200 & 0.16 \\
+        Base    & base\_model.pth                               & 85.49         & 0.00          & 4,440,778         & 0.16   \\
+        \midrule
+        iGreedy & pruned\_model\_iter\_0\_sparsity\_0.0.pth     & 85.49         & 0.00          & 4,440,778         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_1\_sparsity\_20.0.pth    & 85.37         & 16.14         & 3,724,057         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_2\_sparsity\_36.0.pth    & 85.49         & 27.05         & 3,239,634         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_3\_sparsity\_48.8.pth    & 85.75         & 28.28         & 3,185,379         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_4\_sparsity\_59.0.pth    & 85.79         & 35.53         & 2,863,200         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_5\_sparsity\_64.5.pth    & 85.74         & 33.68         & 2,945,309         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_6\_sparsity\_67.2.pth    & 85.66         & 33.90         & 2,935,507         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_7\_sparsity\_71.6.pth    & 85.84         & 30.74         & 3,075,815         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_8\_sparsity\_77.3.pth    & 85.35         & 29.45         & 3,133,297         & 0.16   \\
+        iGreedy & pruned\_model\_iter\_9\_sparsity\_81.8.pth    & 84.88         & 29.20         & 3,144,454         & 0.16   \\
+        \midrule
+        L1Reg   & final\_l1\_pruned\_model\_1e-05.pth          & 87.28         & 58.33          & 1,850,772         & 0.16   \\
+        L1Reg   & final\_l1\_pruned\_model\_1e-04.pth          & 85.39         & 68.27          & 1,409,645         & 0.16   \\
         \bottomrule
     \end{tabular}
-\end{table}
+\end{table*}
 % --- End Results Table ---
 
-\textbf{Plot Analysis (Illustrative):}
-The comparison script also generated plots (saved in the \texttt{results/} directory, see Figures \ref{fig:acc_vs_sparsity} and \ref{fig:acc_vs_gflops} for placeholders).
+\\
+\\
+\textbf{Plot Analysis:}
+The comparison script also generated plots (saved in the \texttt{results/} directory, see Figures \ref{fig:accuracy_vs_sparsity} and \ref{fig:accuracy_vs_gflops}).
 \begin{itemize}
-    \item \textit{Accuracy vs. Sparsity:} This plot typically shows the baseline model at (0\%, high accuracy). The iGreedy points trace a path of increasing sparsity and generally decreasing accuracy, stopping near the specified threshold (84\% in this example). The L1 Regularization result appears as a single point (or multiple points if different hyperparameters were tested), ideally achieving good sparsity for comparable accuracy.
-    \item \textit{Accuracy vs. GFLOPs:} This plot often shows accuracy decreasing while the estimated GFLOPs remain relatively constant. This visually confirms that unstructured weight pruning, as measured by standard architectural analysis (\texttt{thop}), does not significantly alter the theoretical computation count.
+    \item \textit{Accuracy vs. Sparsity:} This plot shows the baseline model at (85.49\%, high accuracy). The iGreedy points trace a path of increasing sparsity and generally decreasing accuracy, stopping near the specified threshold (84\%). The L1 Regularization result appears as multiple points, achieving good sparsity for comparable accuracy.
+    \item \textit{Accuracy vs. GFLOPs:} This plot shows accuracy decreasing while the estimated GFLOPs remain relatively constant. This visually confirms that unstructured weight pruning, as measured by standard architectural analysis (\texttt{thop}), does not significantly alter the theoretical computation count.
 \end{itemize}
 
 % Using standard figure environment
-\begin{figure}
+\begin{figure*}[!t] % Use placement specifier like !t for top of page
     \centering
-    \includegraphics[width=1.0\linewidth]{results/accuracy_vs_sparsity.png}
+    \includegraphics[width=\columnwidth]{results/accuracy_vs_sparsity.png} % Use \columnwidth for single column width
     \caption{Accuracy vs. Sparsity for different pruning methods.}
-    \label{fig:acc_vs_sparsity}
-\end{figure}
+    \label{fig:accuracy_vs_sparsity}
+\end{figure*}
 
-\begin{figure}
+\begin{figure*}[!t] % Use placement specifier like !t for top of page
     \centering
-    \includegraphics[width=1.0\linewidth]{results/accuracy_vs_gflops.png}
+    \includegraphics[width=\columnwidth]{results/accuracy_vs_gflops.png} % Use \columnwidth for single column width
     \caption{Accuracy vs. Estimated GFLOPs for different pruning methods.}
-    \label{fig:acc_vs_gflops}
-\end{figure}
+    \label{fig:accuracy_vs_gflops}
+\end{figure*}
 % --- End Placeholder Figures ---
 
 \textbf{Analysis Summary:}
-Both heuristic methods successfully compressed the model by over 40\% in terms of non-zero parameters while maintaining accuracy above the 82\% target. The iGreedy method provided explicit control over the minimum acceptable accuracy. The L1 method, with appropriate hyperparameter tuning, achieved slightly better compression for similar accuracy in this illustrative run. The constant FLOPs highlight that the primary benefits of this type of pruning are reduced model size (storage, memory bandwidth) rather than direct computational speedup on standard hardware without specialized kernels.
+Both heuristic methods successfully compressed the model with iGreedy achieving ~40\% while L1 Regularization achieving ~68\% in terms of non-zero parameters while maintaining accuracy above the 84\% target. The iGreedy method provided explicit control over the minimum acceptable accuracy. The L1 method, with appropriate hyperparameter tuning, achieved slightly better compression for similar accuracy in this illustrative run. The constant FLOPs highlight that the primary benefits of this type of pruning are reduced model complexity (storage, memory bandwidth) rather than direct computational speedup on standard hardware without specialized kernels.
 
 \section{Discussion}
 
@@ -224,10 +274,7 @@ Both heuristic methods successfully compressed the model by over 40\% in terms o
 \begin{itemize}
     \item \textbf{Hyperparameter Tuning:} Selecting the optimal \texttt{prune\_step\_amount} (iGreedy), \texttt{l1\_lambda}, \texttt{threshold} (L1Reg), and fine-tuning parameters (\texttt{lr}, \texttt{epochs}) required experimentation. We relied on trying reasonable ranges and observing results via the comparison script.
     \item \textbf{Device Compatibility (MPS):} We faced persistent \texttt{TypeError} and \texttt{RuntimeError} issues related to data types (\texttt{float64} vs \texttt{float32}) and device mismatches (\texttt{cpu} vs \texttt{mps}) when using Apple Silicon. The solution involved adding explicit \texttt{.float()} calls after model initialization/loading and ensuring \texttt{model.to(device)} was called strategically within training/fine-tuning loops before operations commenced, overriding potential state changes caused by other PyTorch components.
-    \item \textbf{SSL Certificate Errors:} Dataset download initially failed due to SSL verification issues on macOS. This was resolved by implementing a standard workaround in \texttt{src/data\_loader.py} to temporarily bypass verification during the download.
     \item \textbf{FLOPs Interpretation:} Initial FLOP calculations showed no reduction with sparsity. We clarified that \texttt{thop} measures theoretical FLOPs based on architecture, which unstructured pruning doesn't change. This metric primarily serves as a baseline and emphasizes that speedups require structured pruning or specialized hardware/software.
-    \item \textbf{iGreedy Sparsity Calculation:} An initial implementation incorrectly calculated the pruning amount. This was corrected by calculating the target global sparsity based on the fraction of \textit{remaining} weights to prune in \texttt{src/pruning.py}.
-    \item \textbf{L1 Norm Calculation:} The initial L1 penalty calculation failed for Conv2D weights (4D tensors). This was fixed by using \texttt{torch.abs(param).sum()} instead of \texttt{torch.linalg.norm(param, ord=1)} in \texttt{scripts/prune\_l1reg.py}.
 \end{itemize}
 
 \subsection{Lessons Learned}
@@ -236,22 +283,21 @@ Both heuristic methods successfully compressed the model by over 40\% in terms o
     \item Heuristic methods like iterative pruning and L1 regularization provide practical ways to approximate solutions to the complex underlying optimization problem.
     \item Threshold-based iterative pruning offers a useful mechanism for automatically finding a sparsity level that meets a specific performance requirement.
     \item Achieving computational speed-ups from pruning often requires more sophisticated techniques (structured pruning) or hardware/software co-design; parameter reduction alone mainly benefits storage and memory.
-    \item Thorough testing across different devices (CPU, GPU, MPS) is crucial, as subtle compatibility issues can arise. Robust error handling and explicit type/device management improve code reliability.
 \end{itemize}
 
 \section{Conclusion}
-This project successfully investigated the optimization challenge of neural network pruning. By formulating the problem mathematically (using both constrained and penalized objectives) and implementing two distinct heuristic numerical solvers—iterative greedy magnitude pruning constrained by an accuracy threshold (iGreedy) and L1 regularization with thresholding—we demonstrated effective techniques for compressing a CNN on the CIFAR-10 dataset. Both methods achieved substantial reductions in parameter count (over 40\% sparsity) while maintaining accuracy above a user-defined target (82\%), validated through systematic evaluation including accuracy, sparsity, parameter counts, and estimated FLOPs. The project involved overcoming practical challenges related to hyperparameter tuning, cross-platform device compatibility (especially MPS), and interpreting metrics like FLOPs in the context of unstructured pruning. The developed codebase provides a flexible framework for applying and comparing these common pruning heuristics, highlighting the practical benefits of model compression for deploying deep learning models in resource-constrained scenarios.
+This project successfully investigated the optimization challenge of neural network pruning. By formulating the problem mathematically (using both constrained and penalized objectives) and implementing two distinct heuristic numerical solvers—iterative greedy magnitude pruning constrained by an accuracy threshold (iGreedy) and L1 regularization with thresholding—we demonstrated effective techniques for compressing a CNN on the CIFAR-10 dataset. Both methods achieved substantial reductions in parameter count (~35\% sparsity for iGReedy and ~68\% sparsity for L1 Regularization) while maintaining accuracy above a user-defined target (84\%), validated through systematic evaluation including accuracy, sparsity, parameter counts, and estimated FLOPs. The project involved overcoming practical challenges related to hyperparameter tuning, cross-platform device compatibility (especially MPS), and interpreting metrics like FLOPs in the context of unstructured pruning. The developed codebase provides a flexible framework for applying and comparing these common pruning heuristics, highlighting the practical benefits of model compression for deploying deep learning models in resource-constrained scenarios.
 
-\section{Contributions}
+\section*{Acknowledgment} % Optional section
+The authors would like to thank the University of Maryland for providing the necessary resources and support for this research. We also acknowledge the contributions of the open-source community whose tools made this work possible. Special thanks to our peers and mentors for their valuable feedback and encouragement throughout this project.
+
+% --- Contributions Section ---
+\section*{Contributions}
 \begin{itemize}
-    \item \textbf{Geetika Khanna:} Initial problem formulation based on mid-semester report, literature review on pruning techniques, implementation of the base \texttt{SimpleCNN} model (\texttt{src/model.py}) and initial training setup.
-    \item \textbf{Archit Harsh:} Implementation and refinement of the iGreedy threshold pruning algorithm (\texttt{src/pruning.py}, \texttt{scripts/prune\_igreedy.py}), implementation of the L1 regularization pruning method (\texttt{scripts/prune\_l1reg.py}), development of the results comparison script (\texttt{scripts/compare\_results.py}), running pruning experiments.
-    \item \textbf{Hemal:} Implementation of utility functions (\texttt{src/utils.py} including device handling, FLOPs calculation, saving/loading), debugging device compatibility issues (MPS float32/device errors) and SSL errors, integration of FLOPs metric, final report writing, analysis, and documentation (README, comments).
+     \item \textbf{Geetika Khanna:} Initial problem formulation based on mid-semester report, literature review on pruning techniques, implementation of the base \texttt{SimpleCNN} model and initial training setup. Formulation 1 of objective function and Implementation and refinement of the iGreedy threshold pruning algorithm, running pruning experiments.
+     \item \textbf{Archit Harsh:}  Formulation 2 of the objective function and implementation of the L1 regularization pruning method, development of the results comparison script (\texttt{scripts/compare\_results.py}), running pruning experiments.
+     \item \textbf{Himal Sharma:} Implementation of utility functions including device handling, FLOPs calculation, debugging device compatibility issues (MPS float32/device errors) and SSL errors, integration of FLOPs metric, final report writing, analysis, and documentation (README), running pruning experiments.
 \end{itemize}
 \textit{(All members contributed to the overall project direction, debugging, and report editing.)}
-
-% --- Bibliography (Placeholder) ---
-% \bibliographystyle{IEEEtran} % Or appropriate style (acm, plain, etc.)
-% \bibliography{references} % Assuming you have a references.bib file
 
 \end{document}
