@@ -38,16 +38,9 @@ mlpruning/
 1.  **Clone the repository (if applicable):**
     ```bash
     git clone https://github.com/geetikak13/MLPruning
-    cd model-pruning
     ```
 
-2.  **Create a virtual environment (recommended):**
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
-    ```
-
-3.  **Install dependencies:**
+2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     # Or use: python3 -m pip install -r requirements.txt
@@ -130,4 +123,4 @@ The typical workflow involves training a base model, then applying one or both p
 
 ## `.gitignore`
 
-A `.gitignore` file is included to prevent common Python artifacts, virtual environments, datasets (`data/`), saved models (`models/*/*.pth`), and results (`results/`) from being committed to version control.
+A `.gitignore` file is included to prevent common Python artifacts, virtual environments, datasets (`data/`) from being committed to version control.
